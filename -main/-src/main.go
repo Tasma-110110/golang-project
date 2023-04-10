@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	"log"
 	"net/http"
 	"text/template"
@@ -33,6 +34,49 @@ func main() {
 		WriteTimeout: 15 * time.Second,
 	}
 	log.Fatal(httpServer.ListenAndServe())
+
+	// Route to display the form for adding a new item
+	http.HandleFunc("/add-item", addItemFormHandler)
+
+	// Route to handle form submission and add the new item
+	http.HandleFunc("/add-item-submit", addItemSubmitHandler)
+
+	// Route to display all items
+	http.HandleFunc("/items", itemsHandler)
+
+	// Start the web server and listen for incoming requests
+	fmt.Println("Listening on :8080")
+	http.ListenAndServe(":8080", nil)
+}
+
+func addItemFormHandler(w http.ResponseWriter, r *http.Request) {
+	// Display the form for adding a new item
+	tpl := template.Must(template.ParseFiles("add-item.html"))
+	tpl.Execute(w, nil)
+}
+
+func addItemSubmitHandler(w http.ResponseWriter, r *http.Request) {
+	// Parse the form data and add a new item to the list
+	title := r.FormValue("title")
+	description := r.FormValue("description")
+	price := r.FormValue("price")
+
+	item := Item{
+		Title:       title,
+		Description: description,
+		Price:       price,
+	}
+
+	items = append(items, item)
+
+	// Redirect back to the list of items
+	http.Redirect(w, r, "/items", http.StatusSeeOther)
+}
+
+func itemsHandler(w http.ResponseWriter, r *http.Request) {
+	// Display a list of all items
+	tpl := template.Must(template.ParseFiles("items.html"))
+	tpl.Execute(w, items)
 }
 
 func IndexHandler(w http.ResponseWriter, r *http.Request) {
@@ -83,4 +127,34 @@ func healthcheck(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Forbidden", http.StatusForbidden)
 		return
 	}
+}
+
+func addItemFormHandler(w http.ResponseWriter, r *http.Request) {
+	// Display the form for adding a new item
+	tpl := template.Must(template.ParseFiles("add-item.html"))
+	tpl.Execute(w, nil)
+}
+
+func addItemSubmitHandler(w http.ResponseWriter, r *http.Request) {
+	// Parse the form data and add a new item to the list
+	title := r.FormValue("title")
+	description := r.FormValue("description")
+	price := r.FormValue("price")
+
+	item := Item{
+		Title:       title,
+		Description: description,
+		Price:       price,
+	}
+
+	items = append(items, item)
+
+	// Redirect back to the list of items
+	http.Redirect(w, r, "/items", http.StatusSeeOther)
+}
+
+func itemsHandler(w http.ResponseWriter, r *http.Request) {
+	// Display a list of all items
+	tpl := template.Must(template.ParseFiles("items.html"))
+	tpl.Execute(w, items)
 }
