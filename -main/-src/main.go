@@ -22,6 +22,11 @@ func init() {
 
 func main() {
 	http.HandleFunc("/", IndexHandler)
+
+	http.HandleFunc("/", homeHandler)
+	http.HandleFunc("/checkout", checkoutHandler)
+	http.HandleFunc("/confirm", confirmHandler)
+
 	http.ListenAndServe(":7777", nil)
 
 	r := mux.NewRouter()
@@ -71,6 +76,42 @@ func addItemSubmitHandler(w http.ResponseWriter, r *http.Request) {
 
 	// Redirect back to the list of items
 	http.Redirect(w, r, "/items", http.StatusSeeOther)
+}
+
+func checkoutHandler(w http.ResponseWriter, r *http.Request) {
+	itemID := r.FormValue("item_id")
+
+	if itemID == "" {
+		http.Redirect(w, r, "/", http.StatusSeeOther)
+		return
+	}
+
+	item, err := getItemByID(itemID)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	http.Redirect(w, r, "/confirm", http.StatusSeeOther)
+}
+
+func confirmHandler(w http.ResponseWriter, r *http.Request) {
+	var items []Item
+	var total float64
+
+	for _, cookie := range r.Cookies() {
+		if cookie.Name[:5] == "item_" {
+			itemID := cookie.Name[5:]
+			item, err := getItemByID(itemID)
+			if err != nil {
+				http.Error(w, err.Error(), http.StatusInternalServerError)
+				return
+			}
+
+			items = append(items, *item)
+			total += item.Price
+		}
+	}
 }
 
 func itemsHandler(w http.ResponseWriter, r *http.Request) {
