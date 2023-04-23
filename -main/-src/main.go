@@ -1,6 +1,7 @@
 package main
 
 import (
+	"encoding/json"
 	"fmt"
 	"log"
 	"net/http"
@@ -174,6 +175,52 @@ func addItemFormHandler(w http.ResponseWriter, r *http.Request) {
 	// Display the form for adding a new item
 	tpl := template.Must(template.ParseFiles("add-item.html"))
 	tpl.Execute(w, nil)
+}
+func handlePurchase(w http.ResponseWriter, r *http.Request) {
+	// Parse the purchase request
+	var purchaseRequest struct {
+		ProductID int `json:"product_id"`
+		Quantity  int `json:"quantity"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&purchaseRequest); err != nil {
+		http.Error(w, "Invalid purchase request", http.StatusBadRequest)
+		return
+	}
+
+	// Retrieve the product information from the database
+	var product struct {
+		ID    int
+		Name  string
+		Price float64
+	}
+	err := db.QueryRow("SELECT id, name, price FROM products", purchaseRequest.ProductID).Scan(&product.ID, &product.Name, &product.Price)
+	if err != nil {
+		http.Error(w, "Product not found", http.StatusNotFound)
+		return
+	}
+
+	// Calculate the total price
+	total := product.Price * float64(purchaseRequest.Quantity)
+
+	_, err = db.Exec("INSERT INTO purchases (product_id, quantity, total_price) VALUES ($1, $2, $3)", product.ID, purchaseRequest.Quantity, total)
+	if err != nil {
+		http.Error(w, "Failed to save purchase record", http.StatusInternalServerError)
+		return
+	}
+	response := struct {
+		ProductID   int     `json:"product_id"`
+		ProductName string  `json:"product_name"`
+		Price       float64 `json:"price"`
+		Quantity    int     `json:"quantity"`
+		TotalPrice  float64 `json:"total_price"`
+	}{
+		ProductID:   product.ID,
+		ProductName: product.Name,
+		Price:       product.Price,
+		Quantity:    purchaseRequest.Quantity,
+		TotalPrice:  total,
+	}
+	json.NewEncoder(w).Encode(response)
 }
 
 func addItemSubmitHandler(w http.ResponseWriter, r *http.Request) {
